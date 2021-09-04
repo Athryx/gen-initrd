@@ -1,8 +1,8 @@
 use clap::clap_app;
 
-use std::error::Error;
 use std::fs::File;
 use std::io::{self, Read, Write};
+use std::process::exit;
 
 const MAGIC: u64 = 0x39f298aa4b92e836;
 const ALIGN: u64 = 8;
@@ -101,7 +101,7 @@ impl EntryRaw {
 }
 
 fn align_up(n: u64, align: u64) -> u64 {
-	(n + align - 1) & !(n - 1)
+	(n + align - 1) & !(align - 1)
 }
 
 fn align_to(vec: &mut Vec<u8>, align: u64) {
@@ -145,7 +145,7 @@ fn to_initrd(entries: &Vec<Entry>) -> Vec<u8> {
 	out
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
 	let matches = clap_app!(("gen-initrd") =>
 		(version: "0.1.0")
 		(about: "Simple utility to generate initrd image for the aurora kernel")
@@ -158,18 +158,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 		(@arg files: [FILE] ... "additional files to include in initrd")
 	).get_matches();
 
-	let early_init = matches.value_of("early_init").unwrap();
-	let part_list = matches.value_of("part_list").unwrap();
-	let fs_server = matches.value_of("fs_server").unwrap();
-	let ahci_server = matches.value_of("ahci_server").unwrap();
+	let early_init = matches.value_of("early-init").unwrap();
+	let part_list = matches.value_of("part-list").unwrap();
+	let fs_server = matches.value_of("fs-server").unwrap();
+	let ahci_server = matches.value_of("ahci-server").unwrap();
 	let ext2_server = matches.value_of("ext2-server");
-	let other_files = matches.values_of("files").unwrap();
+	let other_files = matches.values_of("files");
 
 	let mk_entry = |typ, path| {
 		match Entry::new(typ, path) {
 			Ok(entry) => entry,
 			Err(err) => {
-				panic!("Could not read from file {}: {}", path, err);
+				eprintln!("Could not read from file {}: {}", path, err);
+				exit(1);
 			},
 		}
 	};
@@ -185,15 +186,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 		entries.push(mk_entry(EntryType::Ext2Server, ext2));
 	}
 
-	for file in other_files {
-		entries.push(mk_entry(EntryType::Any, file));
+	if let Some(files) = other_files {
+		for file in files {
+			entries.push(mk_entry(EntryType::Any, file));
+		}
 	}
 
 	let out_path = matches.value_of("out").unwrap();
-	let mut out_file = File::create(out_path).expect(&format!("Could not create output file {}", out_path));
+	let mut out_file = match File::create(out_path)
+	{
+		Ok(file) => file,
+		Err(_) => {
+			eprintln!("Could not create output file {}", out_path);
+			exit(1);
+		}
+	};
 
 	let initrd_vec = to_initrd(&entries);
-	out_file.write_all(&initrd_vec[..]).expect(&format!("Could not write initrd to output file {}", out_path));
-
-	Ok(())
+	if let Err(_) = out_file.write_all(&initrd_vec[..])
+	{
+		eprintln!("Could not write initrd to output file {}", out_path);
+		exit(1);
+	}
 }
