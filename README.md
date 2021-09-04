@@ -44,7 +44,7 @@ there are several different valid types:
 
 - 0: any file
 - 1: early-init
-- 2: par-list
+- 2: part-list
 - 3: fs-server
 - 4: ahci-server
 - 5: ext2-server
