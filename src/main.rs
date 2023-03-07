@@ -15,7 +15,6 @@ enum EntryType {
 	PartList = 2,
 	FsSever = 3,
 	AhciServer = 4,
-	Ext2Server = 5,
 }
 
 #[repr(C)]
@@ -153,7 +152,6 @@ fn main() {
 		(@arg ("part-list"): -p --("part-list") <FILE> "File read by early-init which describes which filesytem drivers to use for which partitions and where to mount them")
 		(@arg ("fs-server"): -f --fs <EXECUTABLE> "Filesystem server which filesytem drivers will connect to")
 		(@arg ("ahci-server"): -a --ahci <EXECUTABLE> "Ahci server to allow filesytem drivers to communicate with drives")
-		(@arg ("ext2-server"): -e --ext2 [EXECUTABLE] "ext2 filesytem driver")
 		(@arg out: -o <FILE> "Output file to save initrd to")
 		(@arg files: [FILE] ... "additional files to include in initrd")
 	).get_matches();
@@ -162,7 +160,6 @@ fn main() {
 	let part_list = matches.value_of("part-list").unwrap();
 	let fs_server = matches.value_of("fs-server").unwrap();
 	let ahci_server = matches.value_of("ahci-server").unwrap();
-	let ext2_server = matches.value_of("ext2-server");
 	let other_files = matches.values_of("files");
 
 	let mk_entry = |typ, path| {
@@ -181,10 +178,6 @@ fn main() {
 		mk_entry(EntryType::FsSever, fs_server),
 		mk_entry(EntryType::AhciServer, ahci_server),
 	];
-
-	if let Some(ext2) = ext2_server {
-		entries.push(mk_entry(EntryType::Ext2Server, ext2));
-	}
 
 	if let Some(files) = other_files {
 		for file in files {

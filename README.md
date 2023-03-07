@@ -47,7 +47,6 @@ there are several different valid types:
 - 2: part-list
 - 3: fs-server
 - 4: ahci-server
-- 5: ext2-server
 
 name specifies the offset into the initrd of the name of the entry,
 and name\_len specifies the length of this string
