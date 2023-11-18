@@ -16,6 +16,7 @@ enum EntryType {
 	EarlyInit = 1,
 	PartList = 2,
 	FsSever = 3,
+	HwAccessServer = 4,
 }
 
 #[repr(C)]
@@ -162,7 +163,8 @@ fn main() {
 		(@arg ("check-newer"): -n "Check if any files to be included in initrd are newer than the output initrd image, if they are not do not build initrd")
 		(@arg ("early-init"): -i --init <EXECUTABLE> "First executable spawned by kernel which is responsible for mounting the root filesytem and spawning the init process")
 		(@arg ("part-list"): -p --("part-list") <FILE> "File read by early-init which describes which filesytem drivers to use for which partitions and where to mount them")
-		(@arg ("fs-server"): -f --fs <EXECUTABLE> "Filesystem server which filesytem drivers will connect to")
+		(@arg ("fs-server"): -f --fs <EXECUTABLE> "Filesystem serveri binary")
+		(@arg ("hwaccess-server"): -a --hwaccess <EXECUTABLE> "Hwacess server which drivers will use to interface with hardware")
 		(@arg out: -o <FILE> "Output file to save initrd to")
 		(@arg files: [FILE] ... "additional files to include in initrd")
 	).get_matches();
@@ -170,6 +172,7 @@ fn main() {
 	let early_init = matches.value_of("early-init").unwrap();
 	let part_list = matches.value_of("part-list").unwrap();
 	let fs_server = matches.value_of("fs-server").unwrap();
+	let hwaccess_server = matches.value_of("hwaccess-server").unwrap();
 	let other_files = matches.values_of("files");
 
 	let out_path = matches.value_of("out").unwrap();
@@ -180,9 +183,13 @@ fn main() {
 
 			let early_init_time = get_file_modify_time(early_init);
 			let fs_server_time = get_file_modify_time(fs_server);
+			let hwaccess_server_time = get_file_modify_time(hwaccess_server);
 			let part_list_time = get_file_modify_time(part_list);
 
-			let mut latest_time = cmp::max(cmp::max(early_init_time, fs_server_time), part_list_time);
+			let mut latest_time = cmp::max(
+				cmp::max(early_init_time, fs_server_time),
+				cmp::max(part_list_time, hwaccess_server_time),
+			);
 
 			if let Some(other_files) = other_files.clone() {
 				for file in other_files {
@@ -213,6 +220,7 @@ fn main() {
 		mk_entry(EntryType::EarlyInit, early_init),
 		mk_entry(EntryType::PartList, part_list),
 		mk_entry(EntryType::FsSever, fs_server),
+		mk_entry(EntryType::HwAccessServer, hwaccess_server),
 	];
 
 	if let Some(files) = other_files {
